@@ -1,0 +1,305 @@
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold mb-0">
+            <i class="bi bi-lightbulb-fill text-warning"></i> Product Recommendation Engine
+        </h3>
+        <span class="badge bg-warning text-dark" id="algorithm-badge">Auto-Selecting AI Model</span>
+    </div>
+
+    <!-- Suitability Warning -->
+    <div id="rec-unsuitable-alert" class="alert alert-warning border-warning shadow-sm d-none" role="alert">
+        <h5 class="fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> Unsuitable Dataset</h5>
+        <p class="mb-0">
+            Recommendations require columns for at least a <strong>Product/Item ID</strong> and either an <strong>Invoice/Order ID</strong> or <strong>Customer ID</strong>.
+        </p>
+    </div>
+
+    <div class="row g-4" id="rec-main-content">
+        <!-- Feature Mapping Configuration Card -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-sliders"></i> Map Recommendation Features</span>
+                    <span class="badge bg-success small">Auto-Detected</span>
+                </div>
+                <div class="card-body">
+                    <form id="recommendation-form">
+                        <!-- Invoice Column -->
+                        <div class="mb-3">
+                            <label for="rec_invoice_col" class="form-label fw-bold">Invoice / Order ID</label>
+                            <select id="rec_invoice_col" class="form-select rec-col-select">
+                                <option value="">-- None / Optional --</option>
+                            </select>
+                            <div class="form-text">Enables Market Basket Analysis (Apriori)</div>
+                        </div>
+
+                        <!-- Customer Column -->
+                        <div class="mb-3">
+                            <label for="rec_user_col" class="form-label fw-bold">Customer ID</label>
+                            <select id="rec_user_col" class="form-select rec-col-select">
+                                <option value="">-- None / Optional --</option>
+                            </select>
+                            <div class="form-text">Enables Collaborative Filtering</div>
+                        </div>
+
+                        <!-- Product/Item Column -->
+                        <div class="mb-3">
+                            <label for="rec_item_col" class="form-label fw-bold">Product ID / Name <span class="text-danger">*</span></label>
+                            <select id="rec_item_col" class="form-select rec-col-select" required>
+                                <option value="">-- Select Column --</option>
+                            </select>
+                        </div>
+
+                        <!-- Quantity / Rating Column -->
+                        <div class="mb-3">
+                            <label for="rec_qty_col" class="form-label fw-bold">Quantity / Rating (Optional)</label>
+                            <select id="rec_qty_col" class="form-select rec-col-select">
+                                <option value="">-- None --</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-warning w-100 fw-bold text-dark py-2" id="btn-run-rec">
+                            <i class="bi bi-cpu"></i> Generate Recommendations
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendation Dashboard Output -->
+        <div class="col-lg-8">
+            <div id="recommendation-results" class="d-none">
+                
+                <!-- Algorithm Banner -->
+                <div class="alert alert-info border-info d-flex align-items-center mb-4" role="alert">
+                    <i class="bi bi-info-circle-fill fs-4 me-3 text-info"></i>
+                    <div>
+                        <span class="fw-bold d-block">Active Model Selected:</span>
+                        <span id="active-algorithm-text" class="fs-6">Evaluating...</span>
+                    </div>
+                </div>
+
+                <!-- Section 1: Popular Items Visualization -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-primary text-white fw-bold">
+                        🔥 Top Selling / Popular Items
+                    </div>
+                    <div class="card-body">
+                        <div style="position: relative; height: 220px;">
+                            <canvas id="popularItemsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2A: Association Rules (Market Basket Analysis) -->
+                <div id="association-rules-card" class="card shadow-sm border-0 mb-4 d-none">
+                    <div class="card-header bg-dark text-white fw-bold">
+                        🛒 Market Basket Rules (Frequently Bought Together)
+                    </div>
+                    <div class="card-body overflow-auto">
+                        <table class="table table-striped table-hover align-middle">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>If Customer Buys</th>
+                                    <th>Recommend Product</th>
+                                    <th>Confidence</th>
+                                    <th>Lift</th>
+                                </tr>
+                            </thead>
+                            <tbody id="association-rules-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Section 2B: Personal User Recommendations (Collaborative Filtering) -->
+                <div id="user-recs-card" class="card shadow-sm border-0 d-none">
+                    <div class="card-header bg-success text-white fw-bold">
+                        👤 Personalized Customer Cohort Recommendations
+                    </div>
+                    <div class="card-body overflow-auto">
+                        <table class="table table-striped table-hover align-middle">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Customer ID</th>
+                                    <th>Recommended Next Purchases</th>
+                                </tr>
+                            </thead>
+                            <tbody id="user-recs-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    // Wrapped in an IIFE so this section's variables/functions never collide
+    // with identically-named ones in other sections (they all share the page's
+    // global scope since sections are server-side included, not lazy-loaded).
+    let popularChartInstance = null;
+
+    document.addEventListener("DOMContentLoaded", function () {
+        loadRecommendationSuitability();
+
+        document.getElementById("recommendation-form").addEventListener("submit", handleRunRecommendations);
+
+        // If this dataset was reloaded from history and already has a saved
+        // recommendation result, restore it immediately.
+        if (window.CACHED_RESULTS && window.CACHED_RESULTS.recommendation) {
+            document.getElementById("recommendation-results").classList.remove("d-none");
+            renderRecommendationDashboard(window.CACHED_RESULTS.recommendation);
+        }
+    });
+
+    function loadRecommendationSuitability() {
+        fetch("/prep/check-recommendation-suitability", { method: "POST" })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    if (!data.is_suitable) {
+                        document.getElementById("rec-unsuitable-alert").classList.remove("d-none");
+                    } else {
+                        populateDropdowns(data.all_columns, data.detected_mapping);
+                    }
+                }
+            });
+    }
+
+    function populateDropdowns(cols, mapping) {
+        const selectFields = {
+            "rec_invoice_col": mapping.invoice_col,
+            "rec_user_col": mapping.user_col,
+            "rec_item_col": mapping.item_col,
+            "rec_qty_col": mapping.qty_col
+        };
+
+        for (const [fieldId, autoMappedVal] of Object.entries(selectFields)) {
+            const selectEl = document.getElementById(fieldId);
+            if (!selectEl) continue;
+
+            // Preserve default empty options for optional fields
+            const hasNoneOpt = fieldId !== "rec_item_col";
+            selectEl.innerHTML = hasNoneOpt ? '<option value="">-- None / Optional --</option>' : '<option value="">-- Select Column --</option>';
+
+            cols.forEach(col => {
+                selectEl.innerHTML += `<option value="${col}">${col}</option>`;
+            });
+
+            if (autoMappedVal && cols.includes(autoMappedVal)) {
+                selectEl.value = autoMappedVal;
+            }
+        }
+    }
+
+    function handleRunRecommendations(e) {
+        e.preventDefault();
+        const btn = document.getElementById("btn-run-rec");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Computing AI Model...';
+
+        const payload = {
+            invoice_col: document.getElementById("rec_invoice_col").value,
+            user_col: document.getElementById("rec_user_col").value,
+            item_col: document.getElementById("rec_item_col").value,
+            qty_col: document.getElementById("rec_qty_col").value
+        };
+
+        fetch("/run-recommendations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        })
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cpu"></i> Generate Recommendations';
+
+                if (data.status === "success") {
+                    document.getElementById("recommendation-results").classList.remove("d-none");
+                    renderRecommendationDashboard(data.results);
+                } else {
+                    alert("Recommendation generation failed: " + (data.error || "Unknown error"));
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cpu"></i> Generate Recommendations';
+                alert("An error occurred while generating recommendations.");
+            });
+    }
+
+    function renderRecommendationDashboard(results) {
+        // 1. Update Algorithm Banner & Badge
+        document.getElementById("algorithm-badge").innerText = results.algorithm_used;
+        document.getElementById("active-algorithm-text").innerText = results.algorithm_used;
+
+        // 2. Render Popular Items Bar Chart
+        const labels = results.popular_items.map(x => x.item);
+        const scores = results.popular_items.map(x => x.score);
+
+        const ctx = document.getElementById('popularItemsChart').getContext('2d');
+        if (popularChartInstance) popularChartInstance.destroy();
+
+        popularChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Units / Volume Sold',
+                    data: scores,
+                    backgroundColor: '#ffc107'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // 3. Render Market Basket Rules (if Apriori triggered)
+        const assocCard = document.getElementById("association-rules-card");
+        const assocTbody = document.getElementById("association-rules-tbody");
+
+        if (results.association_rules && results.association_rules.length > 0) {
+            assocCard.classList.remove("d-none");
+            assocTbody.innerHTML = results.association_rules.map(rule => `
+                <tr>
+                    <td><span class="badge bg-secondary fs-6">${rule.if_bought}</span></td>
+                    <td><span class="badge bg-warning text-dark fs-6">${rule.recommended}</span></td>
+                    <td><span class="fw-bold text-success">${rule.confidence}%</span></td>
+                    <td><span class="fw-bold text-primary">${rule.lift}x</span></td>
+                </tr>
+            `).join("");
+        } else {
+            assocCard.classList.add("d-none");
+        }
+
+        // 4. Render User Recommendations (if Collaborative Filtering triggered)
+        const userCard = document.getElementById("user-recs-card");
+        const userTbody = document.getElementById("user-recs-tbody");
+
+        if (results.user_recommendations && Object.keys(results.user_recommendations).length > 0) {
+            userCard.classList.remove("d-none");
+            userTbody.innerHTML = Object.entries(results.user_recommendations).map(([user, recs]) => `
+                <tr>
+                    <td class="fw-bold">${user}</td>
+                    <td>
+                        ${recs.map(item => `<span class="badge bg-success me-1 fs-6">${item}</span>`).join("")}
+                    </td>
+                </tr>
+            `).join("");
+        } else {
+            userCard.classList.add("d-none");
+        }
+    }
+})();
+</script>
