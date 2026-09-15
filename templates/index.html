@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme-fun.css') }}">
 </head>
 <body>
 
@@ -24,10 +25,11 @@
                     <i class="bi bi-box-arrow-right"></i> Logout
                 </a>
             </div>
-            <i class="bi bi-cpu-fill display-3 text-primary mb-3"></i>
+            <div class="display-3 mb-3">🤖</div>
             <h1 class="fw-bold display-5">MarketMind AI</h1>
             <p class="lead text-light opacity-75 mx-auto" style="max-width: 600px;">
-                E-Commerce Customer Analytics Platform: Segmentation, Recommender System & NLP Sentiment Engine.
+                Hi, I'm Miko — your friendly data guide! Drop in a spreadsheet and I'll help you discover customer
+                segments, product recommendations, and review sentiment — no data-science degree required. 🎉
             </p>
         </div>
     </div>
@@ -40,7 +42,7 @@
                     <i class="bi bi-cloud-arrow-up text-primary"></i> Upload Your E-Commerce Dataset
                 </h4>
 
-                <form action="/upload" method="POST" enctype="multipart/form-data">
+                <form id="upload-form" action="/upload" method="POST" enctype="multipart/form-data">
                     <div class="mb-4">
                         <label for="dataset" class="form-label fw-bold">Select Dataset (.csv format)</label>
                         <input type="file" class="form-control form-control-lg" id="dataset" name="dataset" accept=".csv" required>
@@ -49,13 +51,83 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold py-3">
+                    <button type="submit" id="upload-submit-btn" class="btn btn-primary btn-lg w-100 fw-bold py-3">
                         <i class="bi bi-play-circle-fill"></i> Analyze Dataset
                     </button>
                 </form>
+                <div class="text-center mt-3">
+                    <button type="button" class="btn btn-outline-secondary btn-sm fw-bold"
+                        data-bs-toggle="modal" data-bs-target="#csvHelperModal">
+                        <i class="bi bi-arrow-repeat"></i> Got a different file format? Help with CSV
+                    </button>
+                </div>
+                <script>
+                    document.getElementById("upload-form")?.addEventListener("submit", function () {
+                        const btn = document.getElementById("upload-submit-btn");
+                        btn.disabled = true;
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Crunching your data...';
+                    });
+                </script>
             </div>
         </div>
     </div>
+
+    <!-- CSV Conversion Helper Modal -->
+    <div class="modal fade" id="csvHelperModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-arrow-repeat text-primary"></i> Help with CSV</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-2">
+                        This app works with <strong>.csv</strong> files. Got something else? Drop it below and
+                        we'll convert it automatically, right here — no third-party website, works offline.
+                    </p>
+                    <ul class="text-muted small mb-3 ps-3">
+                        <li>Excel — <code>.xlsx</code>, <code>.xls</code></li>
+                        <li>JSON — <code>.json</code></li>
+                        <li>Tab-separated — <code>.tsv</code></li>
+                        <li>Plain delimited text — <code>.txt</code></li>
+                    </ul>
+
+                    {% if convert_error %}
+                    <div class="alert alert-danger small">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ convert_error }}
+                    </div>
+                    {% endif %}
+
+                    <form id="convert-form" action="/convert-to-csv" method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="raw_file" class="form-label fw-bold">Select File to Convert</label>
+                            <input type="file" class="form-control" id="raw_file" name="raw_file"
+                                accept=".xlsx,.xls,.json,.tsv,.txt" required>
+                        </div>
+                        <button type="submit" id="convert-submit-btn" class="btn btn-primary w-100 fw-bold">
+                            <i class="bi bi-magic"></i> Convert &amp; Analyze
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.getElementById("convert-form")?.addEventListener("submit", function () {
+            const btn = document.getElementById("convert-submit-btn");
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Converting...';
+        });
+
+        {% if convert_error %}
+        window.addEventListener("DOMContentLoaded", function () {
+            const modalEl = document.getElementById("csvHelperModal");
+            if (modalEl && window.bootstrap) {
+                new bootstrap.Modal(modalEl).show();
+            }
+        });
+        {% endif %}
+    </script>
 
     <!-- Dataset History -->
     <div class="container">
@@ -133,21 +205,21 @@
     <div class="container my-5 py-4">
         <div class="row g-4 text-center">
             <div class="col-md-4">
-                <div class="p-3">
+                <div class="p-3 card border-0 shadow-sm h-100 mm-fade-up">
                     <i class="bi bi-sliders text-primary display-6 mb-2"></i>
                     <h5 class="fw-bold">Interactive Preprocessing</h5>
                     <p class="text-muted small">Handle missing values, encode categorical variables, and persist changes instantly.</p>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="p-3">
+                <div class="p-3 card border-0 shadow-sm h-100 mm-fade-up" style="animation-delay:.08s">
                     <i class="bi bi-person-lines-fill text-success display-6 mb-2"></i>
                     <h5 class="fw-bold">RFM Segmentation</h5>
                     <p class="text-muted small">Group customers into Champions, Loyal, At-Risk, and Discount Seekers automatically.</p>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="p-3">
+                <div class="p-3 card border-0 shadow-sm h-100 mm-fade-up" style="animation-delay:.16s">
                     <i class="bi bi-chat-square-heart text-danger display-6 mb-2"></i>
                     <h5 class="fw-bold">NLP Sentiment Analysis</h5>
                     <p class="text-muted small">Evaluate product reviews with VADER sentiment scoring for customer feedback insights.</p>
@@ -155,6 +227,8 @@
             </div>
         </div>
     </div>
+    <!-- Bootstrap JS bundle (needed for the "Help with CSV" modal) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>

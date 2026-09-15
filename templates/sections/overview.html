@@ -25,7 +25,7 @@
                     </div>
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Total Rows</span>
-                        <h4 class="mb-0 fw-bold">{{ total_rows if total_rows is defined else (analysis.total_rows if analysis and analysis.total_rows is defined else 0) }}</h4>
+                        <h4 class="mb-0 fw-bold mm-countup">{{ total_rows if total_rows is defined else (analysis.total_rows if analysis and analysis.total_rows is defined else 0) }}</h4>
                     </div>
                 </div>
             </div>
@@ -39,7 +39,7 @@
                     </div>
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Total Columns</span>
-                        <h4 class="mb-0 fw-bold">{{ total_cols if total_cols is defined else (analysis.total_cols if analysis and analysis.total_cols is defined else 0) }}</h4>
+                        <h4 class="mb-0 fw-bold mm-countup">{{ total_cols if total_cols is defined else (analysis.total_cols if analysis and analysis.total_cols is defined else 0) }}</h4>
                     </div>
                 </div>
             </div>
@@ -64,9 +64,9 @@
                             <h6 class="fw-bold mb-0">RFM Segmentation</h6>
                             {% set is_rfm_suitable = (suitability and suitability.rfm is defined and suitability.rfm) or (analysis and analysis.rfm is defined and analysis.rfm) %}
                             {% if is_rfm_suitable %}
-                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Suitable</span>
+                                <span class="badge bg-success mm-pop"><i class="bi bi-check-circle me-1"></i> Suitable</span>
                             {% else %}
-                                <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i> Missing Fields</span>
+                                <span class="badge bg-warning text-dark mm-pop"><i class="bi bi-exclamation-triangle me-1"></i> Missing Fields</span>
                             {% endif %}
                         </div>
                         <p class="text-muted small mb-0">
@@ -82,9 +82,9 @@
                             <h6 class="fw-bold mb-0">Recommender System</h6>
                             {% set is_rec_suitable = (suitability and suitability.recommendation is defined and suitability.recommendation) or (analysis and analysis.recommendation is defined and analysis.recommendation) %}
                             {% if is_rec_suitable %}
-                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Suitable</span>
+                                <span class="badge bg-success mm-pop"><i class="bi bi-check-circle me-1"></i> Suitable</span>
                             {% else %}
-                                <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i> Missing Fields</span>
+                                <span class="badge bg-warning text-dark mm-pop"><i class="bi bi-exclamation-triangle me-1"></i> Missing Fields</span>
                             {% endif %}
                         </div>
                         <p class="text-muted small mb-0">
@@ -100,9 +100,9 @@
                             <h6 class="fw-bold mb-0">Sentiment Analysis</h6>
                             {% set is_sent_suitable = (suitability and suitability.sentiment is defined and suitability.sentiment) or (analysis and analysis.sentiment is defined and analysis.sentiment) %}
                             {% if is_sent_suitable %}
-                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Suitable</span>
+                                <span class="badge bg-success mm-pop"><i class="bi bi-check-circle me-1"></i> Suitable</span>
                             {% else %}
-                                <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i> Missing Fields</span>
+                                <span class="badge bg-warning text-dark mm-pop"><i class="bi bi-exclamation-triangle me-1"></i> Missing Fields</span>
                             {% endif %}
                         </div>
                         <p class="text-muted small mb-0">

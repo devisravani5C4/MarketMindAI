@@ -47,11 +47,8 @@ document.addEventListener("DOMContentLoaded", function () {
     // 3. Prep Metadata & UI Refresh Helpers
     // ==========================================
     function resetPreprocessingUI() {
-        // Disable Undo and Save buttons
-        const undoBtn = document.getElementById("btn-undo-replace");
-        const saveBtn = document.getElementById("btn-save-replace");
-        if (undoBtn) undoBtn.disabled = true;
-        if (saveBtn) saveBtn.disabled = true;
+        // Disable Undo and Save buttons, reset the global status badge
+        toggleReplaceControlState(false);
 
         // Hide status banners/alerts
         const statusAlert = document.getElementById("replace-status-alert");
@@ -143,6 +140,10 @@ document.addEventListener("DOMContentLoaded", function () {
                     // Update prep UI and sync new metadata
                     updatePrepUI(data);
                     refreshPrepMetadata();
+
+                    // Keep the global Save/Undo controls and status badge in sync —
+                    // every action here is only in memory until "Save Changes" is clicked.
+                    toggleReplaceControlState(data.undo_available, data.message);
                 } else {
                     alert("Error: " + (data.error || "Execution failed."));
                 }
@@ -360,11 +361,22 @@ document.addEventListener("DOMContentLoaded", function () {
     function toggleReplaceControlState(undoAvailable, message) {
         const undoBtn = document.getElementById("btn-undo-replace");
         const saveBtn = document.getElementById("btn-save-replace");
+        const statusBadge = document.getElementById("prep-save-status");
         const alertBox = document.getElementById("replace-status-alert");
         const alertMsg = document.getElementById("replace-status-msg");
 
         if (undoBtn) undoBtn.disabled = !undoAvailable;
         if (saveBtn) saveBtn.disabled = !undoAvailable;
+
+        if (statusBadge) {
+            if (undoAvailable) {
+                statusBadge.className = "badge bg-warning text-dark";
+                statusBadge.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Unsaved changes — click Save to keep them';
+            } else {
+                statusBadge.className = "badge bg-success";
+                statusBadge.innerHTML = '<i class="bi bi-check-circle-fill"></i> All changes saved to file';
+            }
+        }
 
         if (alertBox && alertMsg && message) {
             alertBox.classList.remove("d-none");

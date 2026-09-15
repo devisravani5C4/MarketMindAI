@@ -1,13 +1,27 @@
 <div class="col-lg-2 col-md-3 sidebar">
-    <div class="text-center mt-3 mb-4">
+    <div class="text-center mt-3 mb-3">
         <i class="bi bi-cpu-fill display-5 text-white"></i>
         <h4 class="text-white mt-2 fw-bold">MarketMind AI</h4>
         <small class="text-light opacity-75">Analytics Suite</small>
     </div>
 
+    <!-- Workspace Mode Toggle: AI Analyser (the 5 existing modules) vs Code
+         (a Colab-style notebook pre-loaded with the active dataset). -->
+    <div class="px-3 mb-3">
+        <div class="mm-mode-toggle" id="mm-mode-toggle" role="group" aria-label="Workspace mode">
+            <button type="button" class="mm-mode-btn active" id="mode-btn-analyser" data-mode="analyser">
+                <i class="bi bi-robot"></i> AI Analyser
+            </button>
+            <button type="button" class="mm-mode-btn" id="mode-btn-code" data-mode="code">
+                <i class="bi bi-code-slash"></i> Code
+            </button>
+        </div>
+    </div>
+
     <hr class="text-light">
 
-    <div class="nav flex-column">
+    <!-- AI Analyser module navigation (unchanged behavior) -->
+    <div class="nav flex-column" id="analyser-nav">
         <button class="nav-link active" data-section="overview" type="button">
             <i class="bi bi-speedometer2"></i> Overview
         </button>
@@ -22,6 +36,19 @@
         </button>
         <button class="nav-link" data-section="reviews" type="button">
             <i class="bi bi-chat-square-heart"></i> Reviews
+        </button>
+    </div>
+
+    <!-- Code notebook toolbox (shown only in Code mode) -->
+    <div class="nav flex-column d-none" id="code-nav">
+        <button class="code-tool-link" id="nb-sidebar-run-all" type="button">
+            <i class="bi bi-play-fill"></i> Run All Cells
+        </button>
+        <button class="code-tool-link" id="nb-sidebar-add-cell" type="button">
+            <i class="bi bi-plus-lg"></i> Add Cell
+        </button>
+        <button class="code-tool-link text-warning" id="nb-sidebar-restart" type="button">
+            <i class="bi bi-arrow-clockwise"></i> Restart &amp; Re-import
         </button>
     </div>
 </div>

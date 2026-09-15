@@ -1,0 +1,54 @@
+<!-- Code Notebook Section -->
+<div class="code-notebook-container">
+
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <div>
+            <h5 class="fw-bold mb-1"><i class="bi bi-code-slash text-primary me-2"></i>Code Notebook</h5>
+            <small class="text-muted">Write and run Python cells against your dataset — just like a Colab notebook.</small>
+        </div>
+        <span class="badge bg-light text-dark border p-2 fw-normal d-flex align-items-center gap-2">
+            <i class="bi bi-database-check text-success"></i>
+            <span id="code-dataset-status">Preparing dataset…</span>
+        </span>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2 px-3 d-flex flex-wrap gap-2 align-items-center">
+            <button class="btn btn-sm btn-primary" id="nb-run-all" type="button">
+                <i class="bi bi-play-fill"></i> Run All
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" id="nb-add-cell" type="button">
+                <i class="bi bi-plus-lg"></i> Add Cell
+            </button>
+            <button class="btn btn-sm btn-outline-warning" id="nb-restart-kernel" type="button">
+                <i class="bi bi-arrow-clockwise"></i> Restart &amp; Re-import Dataset
+            </button>
+            <span class="text-muted small ms-md-auto">
+                <code>df</code> is ready to use &middot; <code>pd</code>, <code>np</code>, <code>plt</code> preloaded &middot;
+                <kbd>Shift</kbd>+<kbd>Enter</kbd> to run
+            </span>
+        </div>
+    </div>
+
+    <!-- Dataset preview (collapsible) -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white py-2 px-3" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#nb-df-preview-collapse">
+            <span class="fw-semibold small text-dark">
+                <i class="bi bi-table text-primary me-1"></i> Current dataset preview
+            </span>
+            <i class="bi bi-chevron-down float-end text-muted"></i>
+        </div>
+        <div class="collapse" id="nb-df-preview-collapse">
+            <div class="card-body p-3">
+                <div class="table-responsive" id="nb-df-preview">
+                    <div class="text-muted small">Loading preview…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notebook cells get injected here by code_notebook.js -->
+    <div id="notebook-cells"></div>
+
+</div>

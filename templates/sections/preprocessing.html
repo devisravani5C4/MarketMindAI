@@ -4,18 +4,36 @@
     {% include 'layout/preprocessing_nav.html' %}
 
     <!-- Common Dataset Status Header -->
-    <div class="alert alert-info d-flex justify-content-between align-items-center mb-4">
+    <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
             <i class="bi bi-info-circle-fill me-2"></i>
             Active Dataset Status: <strong id="prep-total-rows">{{ total_rows }}</strong> Rows | <strong
                 id="prep-total-cols">{{ total_cols }}</strong> Columns
+            <sup class="mm-explain" data-bs-toggle="tooltip" data-bs-placement="right"
+                title="Preprocessing just means tidying your data before analyzing it — like organizing your desk before starting homework. Fill gaps, fix types, clean messy text.">?</sup>
         </div>
-        <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-primary">Changes automatically persist to active session</span>
-            <a href="/prep/download-current" class="btn btn-sm btn-success fw-bold" id="btn-download-current-dataset">
-                <i class="bi bi-download me-1"></i> Download Current Dataset Version
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span id="prep-save-status" class="badge bg-secondary">
+                <i class="bi bi-check-circle-fill"></i> No changes yet
+            </span>
+            <button type="button" class="btn btn-sm btn-outline-warning fw-bold" id="btn-undo-replace"
+                title="Undo the last change you made" disabled>
+                <i class="bi bi-arrow-counterclockwise"></i> Undo
+            </button>
+            <button type="button" class="btn btn-sm btn-success fw-bold" id="btn-save-replace"
+                title="Save all pending changes permanently to your file" disabled>
+                <i class="bi bi-check-circle"></i> Save Changes
+            </button>
+            <a href="/prep/download-current" class="btn btn-sm btn-outline-success fw-bold" id="btn-download-current-dataset">
+                <i class="bi bi-download me-1"></i> Download Current Version
             </a>
         </div>
+    </div>
+    <div class="alert alert-light border small mb-4" id="prep-save-hint">
+        <i class="bi bi-lightbulb text-warning"></i>
+        Every action below applies instantly to your working copy, but only counts as <strong>saved</strong>
+        once you click <strong>"Save Changes"</strong> above — that's also what gets kept when you reload this
+        dataset later from your history.
     </div>
 
     <!-- 1. MISSING VALUES TAB -->
@@ -198,30 +216,24 @@
                         <i class="bi bi-pencil-square text-primary me-1"></i> Find & Replace Operation
                     </h6>
                     <div class="row g-2 align-items-center">
-                        <div class="col-md-4">
+                        <div class="col-md-5">
                             <input type="text" class="form-control" id="find-val-input"
                                 placeholder="Find value (e.g. 30 or India)">
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-5">
                             <input type="text" class="form-control" id="replace-val-input"
                                 placeholder="Replace with (e.g. 35 or INDIA)">
                         </div>
-                        <div class="col-md-4">
-                            <div class="btn-group w-100" role="group">
-                                <button type="button" class="btn btn-warning fw-bold" id="btn-apply-replace"
-                                    title="Apply single replacement">
-                                    <i class="bi bi-arrow-repeat me-1"></i> Replace
-                                </button>
-                                <button type="button" class="btn btn-outline-warning fw-bold" id="btn-undo-replace"
-                                    title="Undo previous operation" disabled>
-                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Undo
-                                </button>
-                                <button type="button" class="btn btn-success fw-bold" id="btn-save-replace"
-                                    title="Save changes permanently to CSV" disabled>
-                                    <i class="bi bi-check-circle me-1"></i> Save
-                                </button>
-                            </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-warning w-100 fw-bold" id="btn-apply-replace"
+                                title="Apply replacement">
+                                <i class="bi bi-arrow-repeat me-1"></i> Replace
+                            </button>
                         </div>
+                    </div>
+                    <div class="form-text">
+                        Applied instantly like every other action here — use the <strong>Save Changes</strong>
+                        button at the top of the page to keep it.
                     </div>
 
                     <!-- Live Unsaved Status Alert -->

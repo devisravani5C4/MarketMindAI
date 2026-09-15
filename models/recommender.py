@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import re
+import difflib
 from sklearn.metrics.pairwise import cosine_similarity
 from mlxtend.frequent_patterns import apriori, association_rules
 
@@ -182,3 +183,82 @@ def generate_recommendations(df: pd.DataFrame, user_col: str = None, item_col: s
         "association_rules": [],
         "user_recommendations": {}
     }
+
+
+def predict_likely_buyers(df: pd.DataFrame, user_col: str, item_col: str,
+                           new_product_name: str, qty_col: str = None, top_n: int = 15) -> dict:
+    """
+    Content-based prediction for a product that doesn't exist in the dataset yet.
+
+    Since there's no purchase history for a brand-new product, this finds the
+    existing products whose *names* are most similar to it, then ranks
+    customers who bought those similar products the most — the idea being
+    that whoever already buys similar things is the best early-adopter bet
+    for the new one. Falls back to your most active shoppers overall if
+    nothing in the catalog is a close enough match.
+    """
+    if not user_col or user_col not in df.columns:
+        raise ValueError("A valid Customer ID column is required.")
+    if not item_col or item_col not in df.columns:
+        raise ValueError("A valid Product column is required.")
+    if not new_product_name or not str(new_product_name).strip():
+        raise ValueError("Please enter a product name to predict buyers for.")
+
+    working_df = df.dropna(subset=[user_col, item_col]).copy()
+    working_df[item_col] = working_df[item_col].astype(str)
+    existing_products = working_df[item_col].unique().tolist()
+
+    def name_similarity(a: str, b: str) -> float:
+        a_words = set(re.findall(r"[a-z0-9]+", str(a).lower()))
+        b_words = set(re.findall(r"[a-z0-9]+", str(b).lower()))
+        word_overlap = len(a_words & b_words) / max(len(a_words | b_words), 1)
+        seq_ratio = difflib.SequenceMatcher(None, str(a).lower(), str(b).lower()).ratio()
+        return 0.6 * word_overlap + 0.4 * seq_ratio
+
+    scored_products = sorted(
+        ((p, name_similarity(new_product_name, p)) for p in existing_products),
+        key=lambda pair: pair[1],
+        reverse=True
+    )
+    similar_products = [p for p, score in scored_products if score >= 0.3][:3]
+
+    # --- Fallback: no product in the catalog is a close enough match ---
+    if not similar_products:
+        agg_kwargs = {"purchase_count": (item_col, "count")}
+        if qty_col and qty_col in working_df.columns:
+            agg_kwargs["total_qty"] = (qty_col, "sum")
+
+        agg = working_df.groupby(user_col).agg(**agg_kwargs).reset_index()
+        agg = agg.sort_values("purchase_count", ascending=False).head(top_n)
+
+        buyers = [
+            {
+                "customer_id": str(row[user_col]),
+                "reason": f"One of your most active shoppers ({int(row['purchase_count'])} past purchases)",
+                "score": int(row["purchase_count"]),
+            }
+            for _, row in agg.iterrows()
+        ]
+        return {"similar_products": [], "used_fallback": True, "buyers": buyers}
+
+    # --- Rank customers who bought the similar products ---
+    subset = working_df[working_df[item_col].isin(similar_products)]
+
+    agg_kwargs = {"purchase_count": (item_col, "count")}
+    if qty_col and qty_col in subset.columns:
+        agg_kwargs["total_qty"] = (qty_col, "sum")
+
+    agg = subset.groupby(user_col).agg(**agg_kwargs).reset_index()
+    agg = agg.sort_values("purchase_count", ascending=False).head(top_n)
+
+    buyers = []
+    for _, row in agg.iterrows():
+        cust_products = subset[subset[user_col] == row[user_col]][item_col].value_counts()
+        top_match = cust_products.idxmax()
+        buyers.append({
+            "customer_id": str(row[user_col]),
+            "reason": f"Bought '{top_match}' {int(cust_products.max())} time(s) — similar to your new product",
+            "score": int(row["purchase_count"]),
+        })
+
+    return {"similar_products": similar_products, "used_fallback": False, "buyers": buyers}

@@ -374,3 +374,27 @@ def analyze_review_sentiments(df: pd.DataFrame, review_col: str, product_col: st
         "product_breakdown": product_sentiment_table,
         "comments_map": product_comments_map
     }
+
+
+def classify_single_text(text: str) -> dict:
+    """
+    Lightweight single-string sentiment classifier for interactive demos
+    (e.g. a storefront "type your own review" widget). Uses the exact same
+    VADER thresholds as analyze_review_sentiments so results stay consistent
+    with the rest of the app.
+    """
+    if not text or not str(text).strip():
+        return {"label": "Neutral", "compound": 0.0}
+
+    sia = SentimentIntensityAnalyzer()
+    scores = sia.polarity_scores(str(text))
+    compound = scores["compound"]
+
+    if compound >= 0.05:
+        label = "Positive"
+    elif compound <= -0.05:
+        label = "Negative"
+    else:
+        label = "Neutral"
+
+    return {"label": label, "compound": round(compound, 3)}

@@ -12,6 +12,10 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme-fun.css') }}">
+    <!-- CodeMirror (Python syntax highlighting for the Code notebook tab) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
 </head>
 
 <body>
@@ -21,6 +25,14 @@
          without forcing the user to re-run it. -->
     <script>
         window.CACHED_RESULTS = {{ cached_results | default({}) | tojson }};
+        window.ACTIVE_SECTION = {{ active_section | default('overview') | tojson }};
+        {% if converted_from %}
+        window.addEventListener("DOMContentLoaded", function () {
+            setTimeout(function () {
+                alert({{ ("Converted " ~ converted_from ~ " to CSV and loaded it — you're ready to go!") | tojson }});
+            }, 700);
+        });
+        {% endif %}
     </script>
 
     <div class="container-fluid">
@@ -35,29 +47,46 @@
                 <!-- Header Navbar Include -->
                 {% include 'layout/navbar.html' %}
 
-                <!-- 1. Overview Section -->
-                <div id="overview" class="content-section">
-                    {% include 'sections/overview.html' %}
+                <!-- Animated progress stepper (populated by fun.js) -->
+                <div id="mm-stepper-anchor"></div>
+
+                <!-- ================= AI ANALYSER MODE ================= -->
+                <!-- All existing modules live here, unchanged. Toggled by the
+                     sidebar's "AI Analyser / Code" switch. -->
+                <div id="ai-analyser-mode">
+
+                    <!-- 1. Overview Section -->
+                    <div id="overview" class="content-section">
+                        {% include 'sections/overview.html' %}
+                    </div>
+
+                    <!-- 2. Preprocessing Section -->
+                    <div id="preprocessing" class="content-section" style="display:none;">
+                        {% include 'sections/preprocessing.html' %}
+                    </div>
+
+                    <!-- 3. Customer Segmentation (RFM) Section -->
+                    <div id="clustering" class="content-section" style="display:none;">
+                        {% include 'sections/segmentation.html' %}
+                    </div>
+
+                    <!-- 4. Product Recommendation Section -->
+                    <div id="recommendation" class="content-section" style="display:none;">
+                        {% include 'sections/recommendations.html' %}
+                    </div>
+
+                    <!-- 5. Reviews & Sentiment Section -->
+                    <div id="reviews" class="content-section" style="display:none;">
+                        {% include 'sections/reviews.html' %}
+                    </div>
+
                 </div>
 
-                <!-- 2. Preprocessing Section -->
-                <div id="preprocessing" class="content-section" style="display:none;">
-                    {% include 'sections/preprocessing.html' %}
-                </div>
-
-                <!-- 3. Customer Segmentation (RFM) Section -->
-                <div id="clustering" class="content-section" style="display:none;">
-                    {% include 'sections/segmentation.html' %}
-                </div>
-
-                <!-- 4. Product Recommendation Section -->
-                <div id="recommendation" class="content-section" style="display:none;">
-                    {% include 'sections/recommendations.html' %}
-                </div>
-
-                <!-- 5. Reviews & Sentiment Section -->
-                <div id="reviews" class="content-section" style="display:none;">
-                    {% include 'sections/reviews.html' %}
+                <!-- ================= CODE MODE ================= -->
+                <!-- A Colab-style notebook, pre-loaded with the active
+                     (optionally preprocessed) dataset as `df`. -->
+                <div id="code-mode" style="display:none;">
+                    {% include 'sections/code_notebook.html' %}
                 </div>
 
             </div>
@@ -68,8 +97,21 @@
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+    <!-- Confetti for celebratory moments (fun.js no-ops gracefully if this fails to load) -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
     <!-- Custom Dashboard Logic & AJAX Handlers -->
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+
+    <!-- Fun layer: mascot guide, confetti, stepper, count-ups (purely additive) -->
+    <script src="{{ url_for('static', filename='js/fun.js') }}"></script>
+
+    <!-- CodeMirror (Python mode) for the Code notebook tab -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+
+    <!-- AI Analyser / Code mode toggle + notebook cell engine -->
+    <script src="{{ url_for('static', filename='js/code_notebook.js') }}"></script>
 
 </body>
 

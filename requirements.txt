@@ -6,3 +6,6 @@ nltk
 gunicorn
 mlxtend
 flask_sqlalchemy
+openpyxl
+xlrd
+matplotlib

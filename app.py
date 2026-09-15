@@ -1,3 +1,4 @@
+import csv
 import io
 import json
 import os
@@ -26,10 +27,12 @@ from models.preprocessing import (
 from models.recommender import (
     check_recommendation_suitability,
     generate_recommendations,
+    predict_likely_buyers,
 )
 from models.rfm import compute_rfm_segments
 from models.sentiment import analyze_review_sentiments, check_review_suitability
 from models.suitability import detect_segmentation_columns
+from models.code_console import drop_kernel, execute_code, reset_kernel
 
 app = Flask(__name__)
 app.secret_key = "super_secret_ecom_key"
@@ -93,6 +96,53 @@ def read_csv_safely(filepath):
 
     # Fallback mode: ignore/replace unreadable characters
     return pd.read_csv(filepath, encoding="utf-8", errors="replace")
+
+
+def convert_file_to_dataframe(filepath, original_filename):
+    """
+    Reads a non-CSV dataset file (Excel, JSON, TSV, or plain delimited text)
+    into a pandas DataFrame entirely offline using pandas/openpyxl — no
+    external conversion services involved, so it keeps working even with no
+    internet connection (handy at an expo booth). Raises ValueError with a
+    friendly message on unsupported or unreadable files.
+    """
+    ext = os.path.splitext(original_filename)[1].lower()
+
+    try:
+        if ext in (".xlsx", ".xlsm"):
+            return pd.read_excel(filepath, engine="openpyxl")
+        elif ext == ".xls":
+            # Legacy Excel format; requires the optional 'xlrd' package.
+            return pd.read_excel(filepath)
+        elif ext == ".json":
+            return pd.read_json(filepath)
+        elif ext == ".tsv":
+            return pd.read_csv(filepath, sep="\t")
+        elif ext == ".txt":
+            with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+                sample = f.read(4096)
+            try:
+                dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
+                sep = dialect.delimiter
+            except csv.Error:
+                sep = ","
+            return pd.read_csv(filepath, sep=sep, engine="python")
+        elif ext == ".csv":
+            return read_csv_safely(filepath)
+        else:
+            raise ValueError(
+                f"'{ext or 'this file type'}' isn't supported yet. "
+                "Try .xlsx, .xls, .json, .tsv, .txt, or .csv."
+            )
+    except ValueError:
+        raise
+    except ImportError as ie:
+        raise ValueError(
+            f"Reading this file needs an extra library ('{ie.name}') that isn't installed here. "
+            "Try re-saving it as .xlsx instead."
+        )
+    except Exception as e:
+        raise ValueError(f"Couldn't read this file: {str(e)}")
 
 
 def get_current_df(filepath):
@@ -195,6 +245,7 @@ def upload():
     old_filepath = session.get("filepath")
     if old_filepath in DATASET_STACKS:
         DATASET_STACKS.pop(old_filepath, None)
+        drop_kernel(old_filepath)
 
     # Safely load the dataset regardless of character encoding
     try:
@@ -242,6 +293,92 @@ def upload():
     )
 
 
+@app.route("/convert-to-csv", methods=["POST"])
+@login_required
+def convert_to_csv():
+    file = request.files.get("raw_file")
+    if not file or file.filename == "":
+        user = User.query.get(session["user_id"])
+        datasets = [d.to_dict() for d in user.datasets]
+        return render_template(
+            "index.html", datasets=datasets, username=user.username,
+            convert_error="Please choose a file to convert.",
+        )
+
+    user_id = session["user_id"]
+    original_name = secure_filename(file.filename)
+
+    # Save the raw upload to a temp path first so pandas/openpyxl can read it.
+    temp_folder = os.path.join(app.config["UPLOAD_FOLDER"], str(user_id), "_tmp_convert")
+    os.makedirs(temp_folder, exist_ok=True)
+    temp_path = os.path.join(temp_folder, f"{uuid.uuid4().hex}_{original_name}")
+    file.save(temp_path)
+
+    try:
+        df = convert_file_to_dataframe(temp_path, original_name)
+        if df is None or df.empty or len(df.columns) == 0:
+            raise ValueError("That file converted to an empty table — please check it actually has data in it.")
+    except ValueError as ve:
+        user = User.query.get(session["user_id"])
+        datasets = [d.to_dict() for d in user.datasets]
+        return render_template(
+            "index.html", datasets=datasets, username=user.username, convert_error=str(ve),
+        )
+    finally:
+        try:
+            os.remove(temp_path)
+        except OSError:
+            pass
+
+    # From here it's identical to a normal CSV upload: save the converted
+    # table as a real .csv file and jump straight into the dashboard.
+    display_name = os.path.splitext(original_name)[0] + ".csv"
+    user_folder = os.path.join(app.config["UPLOAD_FOLDER"], str(user_id))
+    os.makedirs(user_folder, exist_ok=True)
+    stored_filename = f"{uuid.uuid4().hex}_{display_name}"
+    filepath = os.path.join(user_folder, stored_filename)
+    df.to_csv(filepath, index=False, encoding="utf-8")
+
+    old_filepath = session.get("filepath")
+    if old_filepath in DATASET_STACKS:
+        DATASET_STACKS.pop(old_filepath, None)
+        drop_kernel(old_filepath)
+
+    dataset_record = Dataset(
+        user_id=user_id,
+        display_name=display_name,
+        stored_filename=stored_filename,
+        filepath=filepath,
+        total_rows=len(df),
+        total_cols=len(df.columns),
+    )
+    db.session.add(dataset_record)
+    db.session.commit()
+
+    session["filepath"] = filepath
+    session["filename"] = display_name
+    session["dataset_id"] = dataset_record.id
+    DATASET_STACKS[filepath] = [df]
+    session.pop("undo_available", None)
+    session.pop("prep_history", None)
+
+    suitability = detect_segmentation_columns(df)
+
+    return render_template(
+        "dashboard.html",
+        filename=display_name,
+        suitability=suitability,
+        preview=df.head(10).to_html(
+            classes="table table-striped table-hover", index=False
+        ),
+        columns=df.columns.tolist(),
+        total_rows=len(df),
+        total_cols=len(df.columns),
+        cached_results={},
+        converted_from=original_name,
+    )
+
+
 @app.route("/history/load/<int:dataset_id>")
 @login_required
 def load_history_dataset(dataset_id):
@@ -255,6 +392,7 @@ def load_history_dataset(dataset_id):
     filepath = dataset_record.filepath
     df = read_csv_safely(filepath)
     DATASET_STACKS[filepath] = [df]
+    drop_kernel(filepath)  # force a fresh Code-tab kernel for this (re)loaded dataset
 
     session["filepath"] = filepath
     session["filename"] = dataset_record.display_name
@@ -278,6 +416,17 @@ def load_history_dataset(dataset_id):
         if dataset_record.last_review_result else None,
     }
 
+    # Jump straight back to the furthest module the user had already worked
+    # on, instead of always dropping them back on the Overview tab.
+    if cached_results["reviews"]:
+        active_section = "reviews"
+    elif cached_results["recommendation"]:
+        active_section = "recommendation"
+    elif cached_results["segmentation"]:
+        active_section = "clustering"
+    else:
+        active_section = "overview"
+
     return render_template(
         "dashboard.html",
         filename=dataset_record.display_name,
@@ -289,6 +438,7 @@ def load_history_dataset(dataset_id):
         total_rows=len(df),
         total_cols=len(df.columns),
         cached_results=cached_results,
+        active_section=active_section,
     )
 
 
@@ -303,6 +453,7 @@ def delete_history_dataset(dataset_id):
         return jsonify({"error": "Dataset not found"}), 404
 
     DATASET_STACKS.pop(dataset_record.filepath, None)
+    drop_kernel(dataset_record.filepath)
     if os.path.exists(dataset_record.filepath):
         try:
             os.remove(dataset_record.filepath)
@@ -436,6 +587,35 @@ def run_recommendation_engine():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/run-new-product-prediction", methods=["POST"])
+@login_required
+def run_new_product_prediction():
+    filepath = session.get("filepath")
+    if not filepath or not os.path.exists(filepath):
+        return jsonify({"error": "No dataset found in active session"}), 400
+
+    data = request.json or {}
+    product_name = (data.get("product_name") or "").strip()
+    user_col = data.get("user_col")
+    item_col = data.get("item_col")
+    qty_col = data.get("qty_col")
+
+    if not product_name:
+        return jsonify({"error": "Please enter a product name."}), 400
+    if not user_col or not item_col:
+        return jsonify({"error": "Select a Customer ID and Product column above first."}), 400
+
+    try:
+        df = get_current_df(filepath)
+        results = predict_likely_buyers(df, user_col, item_col, product_name, qty_col)
+        results["product_name"] = product_name
+        return jsonify({"status": "success", "results": results})
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/run-reviews", methods=["POST"])
 @login_required
 def run_reviews():
@@ -454,6 +634,137 @@ def run_reviews():
         return jsonify({"status": "success", "data": results, "results": results})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Customer-facing "storefront" demo — a friendly, non-technical view that
+# shows the *effect* of the three analytics engines above (segmentation,
+# recommendations, sentiment) as an actual shopper would experience them.
+# It only reads data already cached against the active dataset; it never
+# recomputes anything itself (aside from the tiny live-sentiment textbox).
+# ---------------------------------------------------------------------------
+PERSONA_COPY = {
+    "VIP / Whale": {
+        "emoji": "🐋",
+        "greeting": "Welcome back, valued VIP!",
+        "message": "You're one of our top spenders — enjoy first dibs on new arrivals and a dedicated support line.",
+        "offer": "VIP-only: free priority shipping on every order",
+        "theme": "linear-gradient(135deg,#7c3aed,#3b82f6)",
+    },
+    "Premium / Champion": {
+        "emoji": "🏆",
+        "greeting": "Hey Champion, great to see you!",
+        "message": "You shop often and shop big — here's early access to today's flash deals.",
+        "offer": "Champion perk: extra 15% off, ends tonight",
+        "theme": "linear-gradient(135deg,#f59e0b,#ec4899)",
+    },
+    "Loyal Customer": {
+        "emoji": "💛",
+        "greeting": "Welcome back, loyal friend!",
+        "message": "Thanks for coming back again and again — here's something to say thanks.",
+        "offer": "Loyalty reward: 10% off your next order",
+        "theme": "linear-gradient(135deg,#22c55e,#14b8a6)",
+    },
+    "Discount Seeker": {
+        "emoji": "🏷️",
+        "greeting": "Deal alert, just for you!",
+        "message": "We know you love a good bargain — check out today's clearance picks.",
+        "offer": "Today only: extra 20% off clearance",
+        "theme": "linear-gradient(135deg,#ef4444,#f59e0b)",
+    },
+    "At Risk": {
+        "emoji": "💌",
+        "greeting": "We miss you!",
+        "message": "It's been a while — come back and see what's new.",
+        "offer": "Welcome-back offer: 20% off to come back",
+        "theme": "linear-gradient(135deg,#3b82f6,#7c3aed)",
+    },
+    "Lost Customer": {
+        "emoji": "🔔",
+        "greeting": "Long time no see!",
+        "message": "A lot has changed since your last visit — here's a big reason to give us another try.",
+        "offer": "One-time comeback deal: 25% off storewide",
+        "theme": "linear-gradient(135deg,#64748b,#334155)",
+    },
+    "Standard Customer": {
+        "emoji": "🙂",
+        "greeting": "Welcome!",
+        "message": "Explore today's picks curated just for shoppers like you.",
+        "offer": "New here? Get 10% off your first order",
+        "theme": "linear-gradient(135deg,#14b8a6,#3b82f6)",
+    },
+}
+DEFAULT_PERSONA = {
+    "emoji": "🛍️",
+    "greeting": "Welcome, shopper!",
+    "message": "Explore today's picks curated just for you.",
+    "offer": "New here? Get 10% off your first order",
+    "theme": "linear-gradient(135deg,#7c3aed,#ec4899)",
+}
+
+
+@app.route("/storefront")
+@login_required
+def storefront():
+    dataset_id = session.get("dataset_id")
+    dataset_record = Dataset.query.get(dataset_id) if dataset_id else None
+
+    segmentation = (
+        json.loads(dataset_record.last_segmentation_result)
+        if dataset_record and dataset_record.last_segmentation_result else None
+    )
+    recommendation = (
+        json.loads(dataset_record.last_recommendation_result)
+        if dataset_record and dataset_record.last_recommendation_result else None
+    )
+    reviews = (
+        json.loads(dataset_record.last_review_result)
+        if dataset_record and dataset_record.last_review_result else None
+    )
+
+    # Personas to switch between: real segment names if segmentation has been
+    # run, otherwise a friendly generic demo set so the page never feels empty.
+    if segmentation and segmentation.get("chart_data", {}).get("labels"):
+        persona_names = segmentation["chart_data"]["labels"]
+    else:
+        persona_names = ["Premium / Champion", "Loyal Customer", "At Risk", "Standard Customer"]
+
+    personas = [
+        {"name": name, **PERSONA_COPY.get(name, DEFAULT_PERSONA)}
+        for name in persona_names
+    ]
+
+    # Build a small product catalog from whatever product names show up across
+    # the recommendation + review outputs for this dataset.
+    product_names = []
+    if recommendation and recommendation.get("popular_items"):
+        product_names += [p["item"] for p in recommendation["popular_items"]]
+    if reviews and reviews.get("product_breakdown"):
+        product_names += [p["product_name"] for p in reviews["product_breakdown"]]
+
+    seen = set()
+    catalog = []
+    for name in product_names:
+        if name and name not in seen:
+            seen.add(name)
+            catalog.append(name)
+    catalog = catalog[:8]
+
+    sentiment_by_product = {}
+    if reviews and reviews.get("product_breakdown"):
+        for row in reviews["product_breakdown"]:
+            sentiment_by_product[row["product_name"]] = row
+
+    return render_template(
+        "storefront.html",
+        has_data=bool(dataset_record),
+        filename=dataset_record.display_name if dataset_record else None,
+        personas=personas,
+        catalog=catalog,
+        recommendation=recommendation,
+        reviews=reviews,
+        sentiment_by_product=sentiment_by_product,
+    )
 
 
 # --- PREPROCESSING API ENDPOINTS ---
@@ -869,6 +1180,81 @@ def export_sentiment_csv():
     except Exception as e:
         print(f"[DEBUG] CRITICAL ERROR during CSV export: {str(e)}")
         return f"Error exporting CSV: {str(e)}", 500
-        
+
+
+# --- CODE TAB (Colab-style notebook) API ENDPOINTS ---
+#
+# These back the "Code" toggle in the dashboard: a persistent, per-dataset
+# Python kernel that starts pre-loaded with the active dataset (`df`) --
+# including any preprocessing already applied -- plus pandas/numpy/
+# matplotlib. Each cell run keeps whatever state previous cells created,
+# just like a real notebook kernel.
+
+@app.route("/code/init", methods=["GET"])
+@login_required
+def code_init():
+    filepath = session.get("filepath")
+    if not filepath or not os.path.exists(filepath):
+        return jsonify({"status": "error", "message": "No active dataset session"}), 400
+
+    df = get_current_df(filepath)
+    reset_kernel(filepath, lambda: get_current_df(filepath))
+    prep_steps_pending = len(DATASET_STACKS.get(filepath, [])) - 1
+
+    return jsonify(
+        {
+            "status": "success",
+            "total_rows": len(df),
+            "total_cols": len(df.columns),
+            "columns": df.columns.tolist(),
+            "preview": df.head(5).to_html(
+                classes="table table-sm table-striped table-hover mb-0", index=False
+            ),
+            "prep_steps_pending": max(prep_steps_pending, 0),
+        }
+    )
+
+
+@app.route("/code/execute", methods=["POST"])
+@login_required
+def code_execute():
+    filepath = session.get("filepath")
+    if not filepath or not os.path.exists(filepath):
+        return jsonify({"status": "error", "message": "No active dataset session"}), 400
+
+    data = request.json or {}
+    code = data.get("code", "")
+    if not code.strip():
+        return jsonify({"status": "error", "message": "Nothing to run."}), 400
+
+    result = execute_code(filepath, code, lambda: get_current_df(filepath))
+    result["status"] = "success"
+    return jsonify(result)
+
+
+@app.route("/code/reset", methods=["POST"])
+@login_required
+def code_reset():
+    filepath = session.get("filepath")
+    if not filepath or not os.path.exists(filepath):
+        return jsonify({"status": "error", "message": "No active dataset session"}), 400
+
+    df = get_current_df(filepath)
+    reset_kernel(filepath, lambda: df)
+
+    return jsonify(
+        {
+            "status": "success",
+            "message": "Kernel restarted — dataset re-imported.",
+            "total_rows": len(df),
+            "total_cols": len(df.columns),
+            "columns": df.columns.tolist(),
+            "preview": df.head(5).to_html(
+                classes="table table-sm table-striped table-hover mb-0", index=False
+            ),
+        }
+    )
+
+
 if __name__ == "__main__":
     app.run(debug=True)

@@ -1,0 +1,495 @@
+/* =========================================================================
+   MarketMind AI — "Fun Theme" layer
+   Sits on top of style.css. Adds playful color, motion, a mascot guide,
+   a progress stepper, and small "explain this" helpers — without touching
+   any of the existing functional CSS/JS.
+   ========================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap');
+
+:root {
+    --mm-purple: #7c3aed;
+    --mm-pink: #ec4899;
+    --mm-blue: #3b82f6;
+    --mm-teal: #14b8a6;
+    --mm-amber: #f59e0b;
+    --mm-green: #22c55e;
+    --mm-red: #ef4444;
+    --mm-grad: linear-gradient(135deg, var(--mm-purple) 0%, var(--mm-pink) 100%);
+    --mm-grad-cool: linear-gradient(135deg, var(--mm-blue) 0%, var(--mm-teal) 100%);
+    --mm-radius: 1rem;
+}
+
+body {
+    font-family: 'Nunito', 'Segoe UI', Roboto, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6,
+.navbar-brand, .fw-bold {
+    font-family: 'Quicksand', 'Nunito', sans-serif;
+}
+
+/* ---------- Gentle global motion ---------- */
+@keyframes mmFadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes mmPop {
+    0%   { transform: scale(0.85); opacity: 0; }
+    60%  { transform: scale(1.04); opacity: 1; }
+    100% { transform: scale(1); }
+}
+@keyframes mmWiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-6deg); }
+    75% { transform: rotate(6deg); }
+}
+@keyframes mmFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+@keyframes mmPulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.35); }
+    50% { box-shadow: 0 0 0 10px rgba(124, 58, 237, 0); }
+}
+@keyframes mmSpark {
+    0% { transform: scale(0) rotate(0deg); opacity: 1; }
+    100% { transform: scale(1.6) rotate(180deg); opacity: 0; }
+}
+
+.mm-fade-up { animation: mmFadeUp 0.5s ease both; }
+.mm-pop { animation: mmPop 0.45s cubic-bezier(.26,1.6,.4,1) both; }
+
+/* Stagger cards as sections load */
+.content-section .card { animation: mmFadeUp 0.45s ease both; }
+.content-section .row > div:nth-child(1) .card { animation-delay: 0.03s; }
+.content-section .row > div:nth-child(2) .card { animation-delay: 0.09s; }
+.content-section .row > div:nth-child(3) .card { animation-delay: 0.15s; }
+
+.card {
+    border-radius: var(--mm-radius) !important;
+}
+.card.shadow-sm, .card.shadow-lg {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card.shadow-sm:hover, .card.shadow-lg:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.75rem 1.75rem rgba(124, 58, 237, 0.12) !important;
+}
+
+/* Buttons feel bouncy */
+.btn {
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    border-radius: 0.7rem;
+}
+.btn:active { transform: scale(0.96); }
+.btn-primary, .btn-success, .btn-danger {
+    border: none;
+}
+.btn-primary { background: var(--mm-grad); }
+.btn-success { background: linear-gradient(135deg, #16a34a, #22c55e); }
+.btn-danger { background: linear-gradient(135deg, #dc2626, #ec4899); }
+.btn-primary:hover, .btn-success:hover, .btn-danger:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+}
+
+/* Sidebar sparkle */
+.sidebar {
+    background: linear-gradient(180deg, #1e1e2d 0%, #241b3d 100%);
+}
+.sidebar .nav-link i {
+    display: inline-block;
+    transition: transform 0.25s ease;
+}
+.sidebar .nav-link:hover i {
+    transform: scale(1.2) rotate(-8deg);
+}
+.sidebar .nav-link.active {
+    background: var(--mm-grad) !important;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+}
+.sidebar .nav-link.mm-step-done {
+    position: relative;
+}
+.sidebar .nav-link.mm-step-done::after {
+    content: "✓";
+    margin-left: auto;
+    font-weight: 800;
+    color: #4ade80;
+    animation: mmPop 0.4s ease both;
+}
+
+/* KPI numbers pop */
+.mm-countup {
+    display: inline-block;
+}
+
+/* ---------- Progress stepper ---------- */
+.mm-stepper {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #fff;
+    border-radius: 999px;
+    padding: 0.5rem 1rem;
+    box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.06);
+    overflow-x: auto;
+}
+.mm-step {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: #9ca3af;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    transition: all 0.25s ease;
+}
+.mm-step .mm-step-dot {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    transition: all 0.25s ease;
+    flex-shrink: 0;
+}
+.mm-step.mm-current {
+    color: var(--mm-purple);
+}
+.mm-step.mm-current .mm-step-dot {
+    background: var(--mm-grad);
+    color: #fff;
+    animation: mmPulseGlow 1.6s infinite;
+}
+.mm-step.mm-done {
+    color: var(--mm-green);
+}
+.mm-step.mm-done .mm-step-dot {
+    background: var(--mm-green);
+    color: #fff;
+}
+.mm-step-sep {
+    width: 14px;
+    height: 2px;
+    background: #e5e7eb;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+/* ---------- Mascot guide ---------- */
+#mm-mascot-wrap {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    z-index: 1055;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.6rem;
+}
+#mm-mascot-bubble {
+    max-width: 280px;
+    background: #fff;
+    border-radius: 1.1rem 1.1rem 0.2rem 1.1rem;
+    box-shadow: 0 0.75rem 2rem rgba(0,0,0,0.18);
+    padding: 0.85rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #333;
+    position: relative;
+    animation: mmPop 0.35s ease both;
+    border: 2px solid #f3e8ff;
+}
+#mm-mascot-bubble .mm-bubble-close {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    font-size: 0.75rem;
+    color: #bbb;
+    cursor: pointer;
+    line-height: 1;
+}
+#mm-mascot-bubble .mm-bubble-close:hover { color: #888; }
+#mm-mascot-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--mm-grad);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    box-shadow: 0 0.5rem 1.25rem rgba(124, 58, 237, 0.45);
+    cursor: pointer;
+    flex-shrink: 0;
+    animation: mmFloat 3.2s ease-in-out infinite;
+    border: none;
+}
+#mm-mascot-avatar:hover {
+    animation: mmWiggle 0.5s ease;
+}
+#mm-mascot-avatar.mm-hidden-bubble { opacity: 0.85; }
+
+@media (max-width: 576px) {
+    #mm-mascot-bubble { max-width: 62vw; font-size: 0.78rem; }
+    #mm-mascot-avatar { width: 46px; height: 46px; font-size: 1.3rem; }
+    #mm-mascot-wrap { right: 12px; bottom: 12px; }
+}
+
+/* ---------- Achievement toast ---------- */
+#mm-toast-stack {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 1080;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.mm-toast {
+    background: #fff;
+    border-left: 5px solid var(--mm-purple);
+    border-radius: 0.75rem;
+    box-shadow: 0 0.75rem 1.75rem rgba(0,0,0,0.15);
+    padding: 0.75rem 1rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    min-width: 240px;
+    animation: mmPop 0.4s ease both;
+}
+.mm-toast small { display: block; font-weight: 500; color: #777; margin-top: 2px; }
+
+/* ---------- Explain-it helper icons ---------- */
+.mm-explain {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ede9fe;
+    color: var(--mm-purple);
+    font-size: 0.7rem;
+    font-weight: 800;
+    cursor: help;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+    transition: transform 0.15s ease;
+}
+.mm-explain:hover { transform: scale(1.15); background: var(--mm-purple); color: #fff; }
+
+/* ---------- Hero polish (index/login/register) ---------- */
+.hero-section {
+    background: linear-gradient(135deg, #1e1e2d 0%, #3b1f5c 55%, #6d28d9 100%);
+    position: relative;
+    overflow: hidden;
+}
+.hero-section::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 20%, rgba(236,72,153,0.25), transparent 45%),
+                radial-gradient(circle at 80% 80%, rgba(59,130,246,0.25), transparent 45%);
+    pointer-events: none;
+}
+.upload-card { animation: mmFadeUp 0.5s ease both; }
+
+/* =========================================================================
+   EXPO POLISH PACK — floating blobs, gradient headers, toasts, tables,
+   finale celebration, explain tooltips, playful loading text.
+   ========================================================================= */
+
+/* ---------- Ambient floating background blobs ---------- */
+@keyframes mmDrift {
+    0%   { transform: translate(0, 0) scale(1); }
+    33%  { transform: translate(24px, -18px) scale(1.06); }
+    66%  { transform: translate(-18px, 14px) scale(0.96); }
+    100% { transform: translate(0, 0) scale(1); }
+}
+#mm-bg-blobs {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+}
+#mm-bg-blobs span {
+    position: absolute;
+    display: block;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.28;
+    animation: mmDrift 16s ease-in-out infinite;
+}
+#mm-bg-blobs span:nth-child(1) { width: 340px; height: 340px; top: -80px; left: -60px; background: var(--mm-purple); }
+#mm-bg-blobs span:nth-child(2) { width: 280px; height: 280px; top: 40%; right: -80px; background: var(--mm-teal); animation-delay: -5s; animation-duration: 20s; }
+#mm-bg-blobs span:nth-child(3) { width: 260px; height: 260px; bottom: -90px; left: 30%; background: var(--mm-pink); animation-delay: -9s; animation-duration: 18s; }
+body { background-color: #f7f6fb; }
+
+/* ---------- Gradient card headers (swap flat corporate fills for gradients) ---------- */
+.card-header.bg-dark { background: linear-gradient(135deg, #1e1e2d 0%, #3b2a5c 100%) !important; border: none; }
+.card-header.bg-primary { background: var(--mm-grad) !important; border: none; }
+.card-header.bg-success { background: linear-gradient(135deg, #16a34a, #22c55e) !important; border: none; }
+.card-header.bg-warning { background: linear-gradient(135deg, #f59e0b, #fbbf24) !important; border: none; }
+.card-header.bg-danger { background: linear-gradient(135deg, #dc2626, #ec4899) !important; border: none; }
+
+/* ---------- Table polish: rounded, softer stripes, hover glow ---------- */
+.table-responsive .table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+.table thead th, .table thead.table-dark th, .table thead.table-light th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.table-hover > tbody > tr:hover > * {
+    background-color: rgba(124, 58, 237, 0.06) !important;
+    transition: background-color 0.15s ease;
+}
+.table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: rgba(124, 58, 237, 0.025);
+}
+
+/* ---------- Playful toast / alert system (replaces native alert()) ---------- */
+#mm-alert-stack {
+    position: fixed;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1090;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+    pointer-events: none;
+    width: 100%;
+    max-width: 420px;
+    padding: 0 12px;
+}
+.mm-alert-card {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    width: 100%;
+    background: #fff;
+    border-radius: 0.9rem;
+    box-shadow: 0 0.9rem 2rem rgba(0,0,0,0.18);
+    padding: 0.7rem 0.9rem;
+    font-weight: 700;
+    font-size: 0.86rem;
+    color: #333;
+    animation: mmPop 0.35s cubic-bezier(.26,1.6,.4,1) both;
+    border-left: 5px solid var(--mm-green);
+}
+.mm-alert-card.mm-alert-error { border-left-color: var(--mm-red); }
+.mm-alert-card .mm-alert-icon {
+    font-size: 1.15rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.mm-alert-card .mm-alert-close {
+    margin-left: auto;
+    cursor: pointer;
+    color: #bbb;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+.mm-alert-card .mm-alert-close:hover { color: #888; }
+.mm-alert-leaving { opacity: 0; transform: translateY(-8px) scale(0.96); transition: all 0.25s ease; }
+
+/* ---------- Grand finale celebration overlay ---------- */
+#mm-finale-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(30, 20, 50, 0.55);
+    backdrop-filter: blur(3px);
+    animation: mmFadeUp 0.3s ease both;
+}
+.mm-finale-card {
+    background: #fff;
+    border-radius: 1.5rem;
+    padding: 2.25rem 2.5rem;
+    text-align: center;
+    max-width: 420px;
+    box-shadow: 0 1.5rem 3rem rgba(0,0,0,0.35);
+    animation: mmPop 0.5s cubic-bezier(.26,1.6,.4,1) both;
+}
+.mm-finale-card .mm-finale-emoji { font-size: 3.2rem; animation: mmFloat 2.4s ease-in-out infinite; display: inline-block; }
+.mm-finale-card h3 { margin: 0.5rem 0 0.25rem; font-weight: 800; }
+.mm-finale-card p { color: #666; font-size: 0.9rem; margin-bottom: 1.25rem; }
+
+/* ---------- Full-screen result panels (segmentation / recommendation / reviews) ---------- */
+body.mm-modal-open {
+    overflow: hidden;
+}
+.mm-fullscreen-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 1040; /* just below Bootstrap's modal-backdrop (1050) so dialogs like the
+                       review-comments modal still stack correctly above this panel */
+    background: #f7f6fb;
+    overflow-y: auto;
+    padding: 4.5rem clamp(1rem, 4vw, 3rem) 3rem;
+    animation: mmFadeUp 0.3s ease both;
+}
+.mm-fullscreen-panel .mm-panel-close {
+    position: fixed;
+    top: 18px;
+    right: 24px;
+    z-index: 1041;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.22);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    border: none;
+    color: #333;
+    transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.mm-fullscreen-panel .mm-panel-close:hover {
+    transform: scale(1.08) rotate(90deg);
+    background: #ede9fe;
+    color: var(--mm-purple);
+}
+@media (max-width: 576px) {
+    .mm-fullscreen-panel { padding: 4rem 0.75rem 2rem; }
+    .mm-fullscreen-panel .mm-panel-close { top: 10px; right: 10px; width: 38px; height: 38px; font-size: 1.25rem; }
+}
+
+/* ---------- Explain tooltip: gentle pulse to invite curious clicks ---------- */
+@keyframes mmExplainPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.35); }
+    50% { box-shadow: 0 0 0 6px rgba(124, 58, 237, 0); }
+}
+.mm-explain { animation: mmExplainPulse 2.4s ease-in-out infinite; }
+
+/* ---------- Reduced motion: respect it ---------- */
+@media (prefers-reduced-motion: reduce) {
+    #mm-bg-blobs span,
+    #mm-mascot-avatar,
+    .mm-explain,
+    .mm-step.mm-current .mm-step-dot,
+    .mm-finale-card .mm-finale-emoji {
+        animation: none !important;
+    }
+}

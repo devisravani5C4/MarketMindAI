@@ -4,7 +4,7 @@
         <!-- Dashboard Title / Current Active View -->
         <div class="d-flex align-items-center">
             <span class="navbar-brand fw-bold mb-0 text-dark">
-                <i class="bi bi-speedometer2 text-primary me-2"></i>
+                <i class="bi bi-speedometer2 text-primary me-2" id="current-section-icon"></i>
                 <span id="current-section-title">Overview</span>
             </span>
         </div>
@@ -18,6 +18,9 @@
             </div>
             {% endif %}
 
+            <a href="/storefront" target="_blank" class="btn btn-warning btn-sm fw-bold d-flex align-items-center gap-1">
+                <i class="bi bi-shop"></i> View as Customer
+            </a>
             <a href="/" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
                 <i class="bi bi-clock-history"></i> Dataset History
             </a>
